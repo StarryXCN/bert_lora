@@ -13,13 +13,6 @@ from torch.optim.lr_scheduler import OneCycleLR
 
 logging.basicConfig(level=logging.INFO)
 
-class Person:
-    name: str
-    age: int
-    def __init__(self, name, age):
-        self.name = name
-        self.age = age
-
 # ===================== 命令行参数 =====================
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_csv", required=True, type=str, help="训练集CSV路径")
@@ -57,12 +50,12 @@ LR = float(args.learning_rate)
 
 # LoRA 配置
 lora_config = LoraConfig(
-    r = args.lora_rank,
-    lora_alpha = args.lora_alpha,
-    target_modules = args.target_modules.split(","),
-    lora_dropout = args.lora_dropout,
-    bias = "none",
-    task_type = "SEQ_CLS"
+    r=args.lora_rank,
+    lora_alpha=args.lora_alpha,
+    target_modules=args.target_modules.split(","),
+    lora_dropout=args.lora_dropout,
+    bias="none",
+    task_type="SEQ_CLS"
 )
 
 # ===================== 模型 =====================
@@ -70,6 +63,7 @@ tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
 model = BertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=2)
 model = get_peft_model(model, lora_config)
 model = model.to(DEVICE)
+
 
 # ===================== 读取3个数据集 =====================
 
@@ -80,6 +74,7 @@ def load_csv(path):
         "text": [item[args.text_title] for item in dataset],
         "label": [int(item[args.label_title]) for item in dataset]
     }
+
 
 train_df = pd.DataFrame(load_csv(args.train_csv))
 val_df = pd.DataFrame(load_csv(args.val_csv))
@@ -118,9 +113,9 @@ total_steps = len(train_loader) * EPOCHS
 # 替换掉你原来的 线性 / 余弦 scheduler
 scheduler = OneCycleLR(
     optimizer,
-    max_lr=LR,           # 你设置的学习率 2e-5
+    max_lr=LR,  # 你设置的学习率 2e-5
     total_steps=total_steps,
-    pct_start=args.warmup_ratio      # 前10%时间增长到最大LR
+    pct_start=args.warmup_ratio  # 前10%时间增长到最大LR
 )
 
 
@@ -148,12 +143,11 @@ def evaluate(loader, desc):
 
 # ===================== 训练（按步数验证 + 显示 loss） =====================
 logging.info("开始训练…")
-logging.info(f"\n学习率 = {LR}")
 global_step = 0
 
 for epoch in range(EPOCHS):
     model.train()
-    pbar = tqdm(train_loader, desc=f"轮次 {epoch + 1}")
+    pbar = tqdm(train_loader, desc=f"训练（{epoch + 1}）")
 
     for batch in pbar:
         ids, mask, label = [x.to(DEVICE) for x in batch]
@@ -170,7 +164,7 @@ for epoch in range(EPOCHS):
         current_lr = optimizer.param_groups[0]['lr']
 
         if global_step % 50 == 0:
-            pbar.write(f"{{训练 loss: {train_loss:.4f}, 训练学习率：{current_lr:.2e}}}")
+            pbar.write(f"训练：{{loss: {train_loss:.4f}, 学习率：{current_lr:.2e}}}")
 
         # ===================== 关键：每 eval_steps 步验证一次 + 显示 loss =====================
         if global_step % args.eval_steps == 0:
@@ -180,10 +174,10 @@ for epoch in range(EPOCHS):
 
 # ===================== 最后测试集评估 =====================
 test_loss, test_acc = evaluate(test_loader, "测试")
-logging.info(f"\n测试集结果：{{测试 loss: {test_loss:.4f}，测试准确率: {test_acc:.2%}}}")
-logging.info("\n训练完成！")
+logging.info(f"测试集结果：{{测试 loss: {test_loss:.4f}，测试准确率: {test_acc:.2%}}}")
+logging.info("训练完成！")
 
 # ===================== 保存 LoRA 模型 =====================
 model.save_pretrained(args.output_dir)
 tokenizer.save_pretrained(args.output_dir)
-logging.info("LoRA 模型已保存！")
+logging.info(f"LoRA 模型已保存至 {args.output_dir}")

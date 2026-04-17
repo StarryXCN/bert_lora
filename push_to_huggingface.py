@@ -17,5 +17,4 @@ api.upload_folder(
     repo_type="model"
 )
 
-print("上传成功！")
-print(f"访问地址：https://huggingface.co/{args.huggingface_username}/{args.model_repo_name}")
+print(f"上传成功！访问地址：https://huggingface.co/{args.huggingface_username}/{args.model_repo_name}")
